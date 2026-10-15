@@ -24,3 +24,15 @@ Qonuniy kino va serial streaming platformasi (o'quv loyiha). Flask + SQLite.
 
 ## Eslatma
 Faqat qonuniy, litsenziyasi bor kontent qo'shing.
+
+## Render'ga deploy
+1. render.com → New → Blueprint (yoki Web Service) → shu GitHub repo'ni tanla.
+2. Environment'ga ikkita o'zgaruvchi qo'sh (GitHub'ga yozma!):
+   - `KINORA_ADMIN_USER` = bosh admin logini
+   - `KINORA_ADMIN_PASS` = kuchli parol (kamida 8 belgi)
+3. Deploy. Birinchi ishga tushganda bosh admin avtomatik yaratiladi.
+4. Start command: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1`
+
+**Diqqat:** Render'ning bepul rejasida fayl tizimi doimiy emas — qayta deploy yoki restartdan keyin
+`kinora.db` (kontent, foydalanuvchilar) o'chib ketishi mumkin. Jiddiy foydalanish uchun
+doimiy disk yoki PostgreSQL kerak.

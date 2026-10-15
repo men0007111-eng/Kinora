@@ -14,7 +14,7 @@ from flask import (Flask, abort, flash, g, redirect, render_template, request,
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "kinora.db")
+DB_PATH = os.environ.get("KINORA_DB") or os.path.join(BASE, "kinora.db")
 SECRET_PATH = os.path.join(BASE, "secret.key")
 
 ROLE_USER = "user"
@@ -530,7 +530,28 @@ def e404(_e):
     return render_template("error.html", code=404, msg="Sahifa topilmadi"), 404
 
 
+def bootstrap_main_admin():
+    """Server shell bo'lmasa (masalan Render free): bosh adminni env'dan yaratadi.
+    KINORA_ADMIN_USER va KINORA_ADMIN_PASS ni Render'ning Environment bo'limiga yoz
+    (GitHub'ga EMAS). Bosh admin bor bo'lsa hech narsa qilmaydi."""
+    user = os.environ.get("KINORA_ADMIN_USER", "").strip()
+    pw = os.environ.get("KINORA_ADMIN_PASS", "")
+    if not user or not pw:
+        return
+    if not valid_username(user) or len(pw) < 8:
+        print("KINORA: admin login/parol talabga mos emas, o'tkazib yuborildi.")
+        return
+    db = sqlite3.connect(DB_PATH)
+    if not db.execute("SELECT 1 FROM users WHERE role=?", (ROLE_MAIN,)).fetchone():
+        db.execute("INSERT INTO users(username,password_hash,role,perms) VALUES(?,?,?,?)",
+                   (user, generate_password_hash(pw), ROLE_MAIN, ""))
+        db.commit()
+        print("KINORA: bosh admin yaratildi.")
+    db.close()
+
+
 init_db()
+bootstrap_main_admin()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: kinora-cloud
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: KINORA_SECRET
+        generateValue: true
+      - key: KINORA_ADMIN_USER
+        sync: false   # Render'da o'zing kiritasan (bobur03_31)
+      - key: KINORA_ADMIN_PASS
+        sync: false   # Render'da o'zing kiritasan (GitHub'ga yozilmaydi)
