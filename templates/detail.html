@@ -5,9 +5,18 @@
   <div class="dposter" {% if item.poster_url %}style="background-image:url('{{ item.poster_url }}')"{% endif %}></div>
   <div class="dinfo">
     <span class="tag">{{ t('movies') if item.kind == 'movie' else t('series') }}</span>
+    {% if item.age_rating %}<span class="tag alt">{{ item.age_rating }}</span>{% endif %}
     <h1>{{ item.title }}</h1>
-    <p class="muted">{{ item.year or '' }}{% if item.year and item.genre %} · {% endif %}{{ item.genre or '' }}</p>
+    <p class="muted">
+      {{ item.year or '' }}{% if item.year and item.genre %} · {% endif %}{{ item.genre or '' }}
+      {% if item.duration %} · {{ item.duration }} min{% endif %}
+      {% if item.country %} · {{ item.country }}{% endif %}
+    </p>
     <p>{{ item.description }}</p>
+    <dl class="facts">
+      {% if item.director %}<dt>Rejissyor</dt><dd>{{ item.director }}</dd>{% endif %}
+      {% if item.cast_list %}<dt>Aktyorlar</dt><dd>{{ item.cast_list }}</dd>{% endif %}
+    </dl>
     {% if g.user %}
     <form method="post" action="{{ url_for('mylist_toggle', cid=item.id) }}">
       <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -20,8 +29,15 @@
 </article>
 {% if item.video_url %}
 <div class="player">
-  <iframe src="{{ item.video_url }}" allowfullscreen loading="lazy"
-          referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>
+  {% if item.video_url.lower().split('?')[0].endswith(('.mp4', '.webm', '.ogg')) %}
+    <video controls playsinline preload="metadata"
+           {% if item.poster_url %}poster="{{ item.poster_url }}"{% endif %}>
+      <source src="{{ item.video_url }}">
+    </video>
+  {% else %}
+    <iframe src="{{ item.video_url }}" allowfullscreen loading="lazy"
+            referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-presentation"></iframe>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

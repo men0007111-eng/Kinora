@@ -33,6 +33,17 @@ Faqat qonuniy, litsenziyasi bor kontent qo'shing.
 3. Deploy. Birinchi ishga tushganda bosh admin avtomatik yaratiladi.
 4. Start command: `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1`
 
-**Diqqat:** Render'ning bepul rejasida fayl tizimi doimiy emas — qayta deploy yoki restartdan keyin
-`kinora.db` (kontent, foydalanuvchilar) o'chib ketishi mumkin. Jiddiy foydalanish uchun
-doimiy disk yoki PostgreSQL kerak.
+## Baza: SQLite yoki PostgreSQL
+- `DATABASE_URL` berilmasa — SQLite (`kinora.db`), lokal sinov uchun.
+- `DATABASE_URL` berilsa — PostgreSQL (Render). Render'da Postgres yarating va uning
+  **Internal Database URL** ini web servisning Environment'iga `DATABASE_URL` nomi bilan qo'shing.
+- Jadvallar va yangi ustunlar ishga tushganda o'zi yaratiladi/yangilanadi.
+
+**Diqqat:** Render'ning bepul web servisida fayl tizimi doimiy emas (SQLite o'chib ketadi),
+shuning uchun Render'da PostgreSQL ishlating. Bepul Postgres 30 kundan keyin tugaydi (14 kun
+imtiyozli muddat bor) — keyin pulli rejaga o'tish yoki yangi baza kerak.
+
+## Kino ma'lumotlari va video
+Admin panelda: nomi, yil, davomiyligi, davlat, janr, rejissyor, aktyorlar, yosh chegarasi,
+tavsif, poster va video havola. `.mp4` / `.webm` havola bo'lsa o'z pleyerida, boshqa
+`https://` embed havola bo'lsa iframe'da o'ynaydi. Faqat qonuniy kontent qo'shing.

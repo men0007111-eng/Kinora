@@ -3,9 +3,9 @@ Login va parol kodga YOZILMAYDI - ishga tushganda o'zing kiritasan,
 shunda GitHub'ga parol tushib qolmaydi.
 
 Ishlatish:  python create_main_admin.py
+(DATABASE_URL berilgan bo'lsa PostgreSQL'ga, bo'lmasa kinora.db ga yozadi)
 """
 import getpass
-import sqlite3
 
 from werkzeug.security import generate_password_hash
 
@@ -19,11 +19,11 @@ if not kinora.valid_username(username):
 if len(password) < 8:
     raise SystemExit("Parol kamida 8 belgi bo'lsin.")
 
-db = sqlite3.connect(kinora.DB_PATH)
-if db.execute("SELECT 1 FROM users WHERE role='main_admin'").fetchone():
+db = kinora.connect()
+if db.execute(kinora.adapt("SELECT 1 FROM users WHERE role=?"), ("main_admin",)).fetchone():
     raise SystemExit("Bosh admin allaqachon bor.")
 db.execute(
-    "INSERT INTO users(username,password_hash,role,perms) VALUES(?,?,?,?)",
+    kinora.adapt("INSERT INTO users(username,password_hash,role,perms) VALUES(?,?,?,?)"),
     (username, generate_password_hash(password), "main_admin", ""),
 )
 db.commit()

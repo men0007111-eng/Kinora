@@ -66,44 +66,99 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 # ---------------------------------------------------------------- database
+# DATABASE_URL bo'lsa PostgreSQL (Render), bo'lmasa SQLite (kinora.db) ishlatiladi.
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS users(
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE NOT NULL,
-  email TEXT,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'user',
-  perms TEXT NOT NULL DEFAULT '',
-  created TEXT DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS content(
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT NOT NULL,
-  description TEXT,
-  year INTEGER,
-  genre TEXT,
-  kind TEXT NOT NULL DEFAULT 'movie',
-  poster_url TEXT,
-  video_url TEXT,
-  created_by INTEGER,
-  created TEXT DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS mylist(
-  user_id INTEGER, content_id INTEGER,
-  PRIMARY KEY(user_id, content_id)
-);
-CREATE TABLE IF NOT EXISTS history(
-  user_id INTEGER, content_id INTEGER, updated TEXT DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY(user_id, content_id)
-);
-"""
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+USE_PG = bool(DATABASE_URL)
+if USE_PG:
+    import psycopg
+    from psycopg.rows import dict_row
+
+SCHEMA_SQLITE = [
+    """CREATE TABLE IF NOT EXISTS users(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      perms TEXT NOT NULL DEFAULT '',
+      created TEXT DEFAULT CURRENT_TIMESTAMP)""",
+    """CREATE TABLE IF NOT EXISTS content(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      year INTEGER,
+      genre TEXT,
+      kind TEXT NOT NULL DEFAULT 'movie',
+      poster_url TEXT,
+      video_url TEXT,
+      created_by INTEGER,
+      created TEXT DEFAULT CURRENT_TIMESTAMP)""",
+    """CREATE TABLE IF NOT EXISTS mylist(
+      user_id INTEGER, content_id INTEGER,
+      PRIMARY KEY(user_id, content_id))""",
+    """CREATE TABLE IF NOT EXISTS history(
+      user_id INTEGER, content_id INTEGER, updated TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(user_id, content_id))""",
+]
+
+SCHEMA_PG = [
+    """CREATE TABLE IF NOT EXISTS users(
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      perms TEXT NOT NULL DEFAULT '',
+      created TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+    """CREATE TABLE IF NOT EXISTS content(
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      year INTEGER,
+      genre TEXT,
+      kind TEXT NOT NULL DEFAULT 'movie',
+      poster_url TEXT,
+      video_url TEXT,
+      created_by INTEGER,
+      created TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+    """CREATE TABLE IF NOT EXISTS mylist(
+      user_id INTEGER, content_id INTEGER,
+      PRIMARY KEY(user_id, content_id))""",
+    """CREATE TABLE IF NOT EXISTS history(
+      user_id INTEGER, content_id INTEGER, updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(user_id, content_id))""",
+]
+
+# Keyinchalik qo'shilgan ustunlar (eski bazalar ham yangilanadi)
+EXTRA_COLUMNS = [
+    ("director", "TEXT"),
+    ("country", "TEXT"),
+    ("duration", "INTEGER"),
+    ("cast_list", "TEXT"),
+    ("age_rating", "TEXT"),
+]
+
+
+def connect():
+    if USE_PG:
+        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def adapt(sql):
+    """SQLite uslubidagi (? va :nom) so'rovni PostgreSQL ga moslaydi."""
+    if USE_PG:
+        sql = re.sub(r":(\w+)", r"%(\1)s", sql)
+        sql = sql.replace("?", "%s")
+    return sql
 
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
+        g.db = connect()
     return g.db
 
 
@@ -115,21 +170,28 @@ def close_db(_exc):
 
 
 def init_db():
-    db = sqlite3.connect(DB_PATH)
-    db.executescript(SCHEMA)
-    db.commit()
-    db.close()
+    conn = connect()
+    for stmt in (SCHEMA_PG if USE_PG else SCHEMA_SQLITE):
+        conn.execute(stmt)
+    for name, typ in EXTRA_COLUMNS:
+        if USE_PG:
+            conn.execute("ALTER TABLE content ADD COLUMN IF NOT EXISTS %s %s" % (name, typ))
+        else:
+            cols = [r[1] for r in conn.execute("PRAGMA table_info(content)").fetchall()]
+            if name not in cols:
+                conn.execute("ALTER TABLE content ADD COLUMN %s %s" % (name, typ))
+    conn.commit()
+    conn.close()
 
 
 def q(sql, args=(), one=False):
-    cur = get_db().execute(sql, args)
-    rows = cur.fetchall()
+    rows = get_db().execute(adapt(sql), args).fetchall()
     return (rows[0] if rows else None) if one else rows
 
 
 def run(sql, args=()):
     db = get_db()
-    cur = db.execute(sql, args)
+    cur = db.execute(adapt(sql), args)
     db.commit()
     return cur
 
@@ -264,8 +326,10 @@ def search():
     items = []
     if term:
         like = "%" + term.replace("%", "").replace("_", "") + "%"
-        items = q("""SELECT * FROM content WHERE title LIKE ? OR genre LIKE ?
-                     ORDER BY id DESC""", (like, like))
+        items = q("""SELECT * FROM content
+                     WHERE LOWER(title) LIKE LOWER(?) OR LOWER(COALESCE(genre,'')) LIKE LOWER(?)
+                        OR LOWER(COALESCE(director,'')) LIKE LOWER(?)
+                     ORDER BY id DESC""", (like, like, like))
     return render_template("browse.html", items=items, kind=None, term=term)
 
 
@@ -278,8 +342,9 @@ def detail(cid):
     if g.user:
         saved = q("SELECT 1 FROM mylist WHERE user_id=? AND content_id=?",
                   (g.user["id"], cid), one=True) is not None
-        run("INSERT OR REPLACE INTO history(user_id,content_id,updated) "
-            "VALUES(?,?,CURRENT_TIMESTAMP)", (g.user["id"], cid))
+        run("INSERT INTO history(user_id,content_id,updated) VALUES(?,?,CURRENT_TIMESTAMP) "
+            "ON CONFLICT(user_id,content_id) DO UPDATE SET updated=CURRENT_TIMESTAMP",
+            (g.user["id"], cid))
     return render_template("detail.html", item=item, saved=saved)
 
 
@@ -401,7 +466,16 @@ def read_content_form():
         year = int(f.get("year") or 0) or None
     except ValueError:
         year = None
+    try:
+        duration = int(f.get("duration") or 0) or None
+    except ValueError:
+        duration = None
     return dict(
+        director=f.get("director", "").strip()[:120],
+        country=f.get("country", "").strip()[:80],
+        duration=duration,
+        cast_list=f.get("cast_list", "").strip()[:500],
+        age_rating=f.get("age_rating", "").strip()[:10],
         title=f.get("title", "").strip()[:150],
         description=f.get("description", "").strip()[:3000],
         year=year,
@@ -420,8 +494,10 @@ def content_new():
         if not d["title"]:
             flash("Sarlavha kerak.", "error")
             return render_template("admin/content_form.html", item=d, new=True)
-        run("""INSERT INTO content(title,description,year,genre,kind,poster_url,video_url,created_by)
-               VALUES(:title,:description,:year,:genre,:kind,:poster_url,:video_url,:by)""",
+        run("""INSERT INTO content(title,description,year,genre,kind,poster_url,video_url,
+                                   director,country,duration,cast_list,age_rating,created_by)
+               VALUES(:title,:description,:year,:genre,:kind,:poster_url,:video_url,
+                      :director,:country,:duration,:cast_list,:age_rating,:by)""",
             {**d, "by": g.user["id"]})
         flash("Kontent qo'shildi.", "ok")
         return redirect(url_for("admin_home"))
@@ -440,7 +516,9 @@ def content_edit(cid):
             flash("Sarlavha kerak.", "error")
             return render_template("admin/content_form.html", item=d, new=False, cid=cid)
         run("""UPDATE content SET title=:title,description=:description,year=:year,
-               genre=:genre,kind=:kind,poster_url=:poster_url,video_url=:video_url
+               genre=:genre,kind=:kind,poster_url=:poster_url,video_url=:video_url,
+               director=:director,country=:country,duration=:duration,
+               cast_list=:cast_list,age_rating=:age_rating
                WHERE id=:id""", {**d, "id": cid})
         flash("Saqlandi.", "ok")
         return redirect(url_for("admin_home"))
@@ -541,9 +619,10 @@ def bootstrap_main_admin():
     if not valid_username(user) or len(pw) < 8:
         print("KINORA: admin login/parol talabga mos emas, o'tkazib yuborildi.")
         return
-    db = sqlite3.connect(DB_PATH)
-    if not db.execute("SELECT 1 FROM users WHERE role=?", (ROLE_MAIN,)).fetchone():
-        db.execute("INSERT INTO users(username,password_hash,role,perms) VALUES(?,?,?,?)",
+    db = connect()
+    exists = db.execute(adapt("SELECT 1 FROM users WHERE role=?"), (ROLE_MAIN,)).fetchone()
+    if not exists:
+        db.execute(adapt("INSERT INTO users(username,password_hash,role,perms) VALUES(?,?,?,?)"),
                    (user, generate_password_hash(pw), ROLE_MAIN, ""))
         db.commit()
         print("KINORA: bosh admin yaratildi.")
