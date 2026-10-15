@@ -1,0 +1,7 @@
+<div class="adminnav">
+  <a href="{{ url_for('admin_home') }}">📊 Dashboard</a>
+  {% if has_perm('add_content') %}<a href="{{ url_for('content_new') }}">➕ Kontent qo'shish</a>{% endif %}
+  {% if g.user.role == ROLE_MAIN %}<a href="{{ url_for('admins') }}">👥 Adminlar</a>{% endif %}
+  <a href="{{ url_for('change_password') }}">🔑 Parol</a>
+  <span class="role">{{ 'Bosh admin' if g.user.role == ROLE_MAIN else 'Yordamchi admin' }}</span>
+</div>

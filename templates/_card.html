@@ -1,0 +1,8 @@
+<a class="card" href="{{ url_for('detail', cid=c.id) }}">
+  <div class="poster" {% if c.poster_url %}style="background-image:url('{{ c.poster_url }}')"{% endif %}>
+    {% if not c.poster_url %}<span>{{ c.title[:1] }}</span>{% endif %}
+    <em class="tag">{{ t('movies') if c.kind == 'movie' else t('series') }}</em>
+  </div>
+  <div class="ctitle">{{ c.title }}</div>
+  <div class="cmeta">{{ c.year or '' }}{% if c.year and c.genre %} · {% endif %}{{ c.genre or '' }}</div>
+</a>

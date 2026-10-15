@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+{% if hero %}
+<section class="hero" {% if hero.poster_url %}style="--bg:url('{{ hero.poster_url }}')"{% endif %}>
+  <div class="hero-in">
+    <span class="tag">{{ t('latest') }}</span>
+    <h1>{{ hero.title }}</h1>
+    <p>{{ (hero.description or '')[:220] }}</p>
+    <a class="btn big" href="{{ url_for('detail', cid=hero.id) }}">▶ {{ hero.title[:24] }}</a>
+  </div>
+</section>
+{% else %}
+<section class="hero"><div class="hero-in"><h1>KINORA</h1><p>{{ t('nothing') }}</p></div></section>
+{% endif %}
+
+{% macro row(title, items) %}
+  {% if items %}
+  <h2 class="rowtitle">{{ title }}</h2>
+  <div class="row">{% for c in items %}{% include "_card.html" %}{% endfor %}</div>
+  {% endif %}
+{% endmacro %}
+
+{{ row(t('continue'), cont) }}
+{{ row(t('latest'), latest) }}
+{{ row(t('movies'), movies) }}
+{{ row(t('series'), series) }}
+{% endblock %}

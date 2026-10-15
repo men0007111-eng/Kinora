@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="authbox" style="text-align:center">
+  <h1>{{ code }}</h1>
+  <p class="muted">{{ msg }}</p>
+  <a class="btn" href="{{ url_for('home') }}">{{ t('home') }}</a>
+</div>
+{% endblock %}

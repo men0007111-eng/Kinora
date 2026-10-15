@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="pagetitle">
+  {% if kind == 'movie' %}{{ t('movies') }}
+  {% elif kind == 'series' %}{{ t('series') }}
+  {% elif kind == 'mylist' %}{{ t('mylist') }}
+  {% else %}🔎 {{ term or '' }}{% endif %}
+</h1>
+{% if items %}
+<div class="grid">{% for c in items %}{% include "_card.html" %}{% endfor %}</div>
+{% else %}
+<p class="muted">{{ t('nothing') }}</p>
+{% endif %}
+{% endblock %}

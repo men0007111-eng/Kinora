@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_nav.html" %}
+
+<form method="post" class="formbox">
+  <h2>Yordamchi admin qo'shish</h2>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="two">
+    <label>Login<input name="username" required minlength="3" maxlength="32"></label>
+    <label>Parol (kamida 8)<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+  </div>
+  <div class="perms">
+    {% for key, label in PERMS.items() %}
+      <label class="check"><input type="checkbox" name="perms" value="{{ key }}"> {{ label }}</label>
+    {% endfor %}
+  </div>
+  <button class="btn">Qo'shish</button>
+</form>
+
+<h2 class="rowtitle">Adminlar ro'yxati</h2>
+<div class="tablewrap">
+<table>
+  <tr><th>Login</th><th>Rol</th><th>Huquqlar</th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.username }}</td>
+    <td>{{ 'Bosh admin' if r.role == ROLE_MAIN else 'Yordamchi' }}</td>
+    {% if r.role == ROLE_MAIN %}
+      <td colspan="2" class="muted">Barcha huquqlar</td>
+    {% else %}
+      <td>
+        <form method="post" action="{{ url_for('admin_perms', uid=r.id) }}" class="perms">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          {% for key, label in PERMS.items() %}
+            <label class="check"><input type="checkbox" name="perms" value="{{ key }}" {{ 'checked' if key in r.perms.split(',') }}> {{ label }}</label>
+          {% endfor %}
+          <button class="btn small ghost">Saqlash</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('admin_delete', uid=r.id) }}" class="inline" onsubmit="return confirm('Admin o\'chirilsinmi?')">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="btn small danger">O'chirish</button>
+        </form>
+      </td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

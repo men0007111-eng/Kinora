@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin/_nav.html" %}
+<div class="stats">
+  <div class="stat"><b>{{ stats.content }}</b><span>Jami kontent</span></div>
+  <div class="stat"><b>{{ stats.movies }}</b><span>Kinolar</span></div>
+  <div class="stat"><b>{{ stats.series }}</b><span>Seriallar</span></div>
+  <div class="stat"><b>{{ stats.users }}</b><span>Foydalanuvchilar</span></div>
+  <div class="stat"><b>{{ stats.admins }}</b><span>Adminlar</span></div>
+</div>
+
+<h2 class="rowtitle">Kontent boshqaruvi</h2>
+<div class="tablewrap">
+<table>
+  <tr><th>ID</th><th>Nomi</th><th>Turi</th><th>Yil</th><th></th></tr>
+  {% for c in items %}
+  <tr>
+    <td>{{ c.id }}</td>
+    <td><a href="{{ url_for('detail', cid=c.id) }}">{{ c.title }}</a></td>
+    <td>{{ 'Kino' if c.kind == 'movie' else 'Serial' }}</td>
+    <td>{{ c.year or '' }}</td>
+    <td class="actions">
+      {% if has_perm('edit_content') %}<a class="btn small ghost" href="{{ url_for('content_edit', cid=c.id) }}">Tahrirlash</a>{% endif %}
+      {% if has_perm('delete_content') %}
+      <form method="post" action="{{ url_for('content_delete', cid=c.id) }}" class="inline" onsubmit="return confirm('O\'chirilsinmi?')">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn small danger">O'chirish</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">{{ t('nothing') }}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}
