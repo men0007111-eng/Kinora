@@ -47,3 +47,8 @@ imtiyozli muddat bor) — keyin pulli rejaga o'tish yoki yangi baza kerak.
 Admin panelda: nomi, yil, davomiyligi, davlat, janr, rejissyor, aktyorlar, yosh chegarasi,
 tavsif, poster va video havola. `.mp4` / `.webm` havola bo'lsa o'z pleyerida, boshqa
 `https://` embed havola bo'lsa iframe'da o'ynaydi. Faqat qonuniy kontent qo'shing.
+
+## Netlify (ixtiyoriy oldingi sahifa)
+`netlify/` papkasi — Netlify'da `netlify.app` manzilini Render'dagi KINORA'ga ulaydi (proxy).
+Netlify → Add new site → Import from Git → bu repo → **Base directory: `netlify`**, Build command bo'sh,
+**Publish directory: `.`** → Deploy. Ilova baribir Render'da ishlaydi.
